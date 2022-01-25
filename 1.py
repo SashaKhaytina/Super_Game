@@ -3,47 +3,95 @@ import sqlite3
 import pygame
 import os
 import sys
+import time
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QLabel, QLineEdit
+from PyQt5 import uic
 pygame.init()
-con = sqlite3.connect('data/побег')
-cur = con.cursor()
-log = 'Test'
-otvet = cur.execute('''SELECT game FROM Reg WHERE login IS (?)''', (log, )).fetchall()
-person_clici = str(otvet[0][0]).split(' ')
+
 size = width, height = 1200, 650
 screen = pygame.display.set_mode(size)
 sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 game_music = pygame.mixer.Sound('data/game.mp3')
 game_music.set_volume(0.025)
+
 clici = [0, 0, 0, 0, 0]
-money_player_obshii = cur.execute('''SELECT money FROM Reg WHERE login IS (?)''', (log, )).fetchall()
-money_player_obshii = money_player_obshii[0][0]
-money_player = 0
 money_brag = 0
 
 
-def Music():
-    # + надо изменение музыки когда враг близко
-    pygame.init()
-    pygame.mixer.music.load('data/star_musik.mp3')
-    pygame.mixer.music.play(-1)
-    pygame.mixer.music.set_volume(0.025)
+class SpriteGroup(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+
+    def get_event(self, event):
+        for i in self:
+            i.get_event(event)
 
 
-def load_image(name, color_key=None):
-    fullname = os.path.join('data', name)
-    try:
-        image = pygame.image.load(fullname)
-    except pygame.error as message:
-        print('Не удаётся загрузить:', name)
-        raise SystemExit(message)
-    image = image.convert_alpha()
-    return image
+class Sprite(pygame.sprite.Sprite):
+    def __init__(self, group):
+        super().__init__(group)
+        self.rect = None
+
+    def get_event(self, event):
+        pass
 
 
-def terminate():
-    pygame.quit()
-    sys.exit()
+class Reg(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.money = 500
+        uic.loadUi('reg.ui', self)  # Загружаем дизайн
+        self.pushButton.clicked.connect(self.check)
+        self.db = sqlite3.connect("info.db")
+        self.sql = self.db.cursor()
+        self.sql.execute("""CREATE TABLE IF NOT EXISTS users(
+                    login TEXT,
+                    password TEXT,
+                    current_money INTEGER)""")
+        self.sql.execute("""CREATE TABLE IF NOT EXISTS records(
+                            login TEXT,
+                            money INTEGER,
+                            time INTEGER)""")
+        self.db.commit()
+        self.show()
+
+    def check(self):
+        self.l = self.lineEdit_1.text()
+        self.p = self.lineEdit_2.text()
+        result = self.cur.execute("""SELECT * FROM users WHERE login = ?""",
+                                  (self.login.text(),)).fetchall()
+        if len(result) > 0:
+            if result[0][1] == self.p:
+                self.money = result[0][2]
+                self.file = open("current_person.txt", mode='w', encoding="utf-8")
+                self.file.write(self.l + ' ' + self.money)
+                self.file.close()
+                self.close()
+            else:
+                self.label_3.setText("Неправильный пароль!")
+                self.label_3.adjustSize()
+                self.lineEdit_2.setText("")
+        else:
+            self.file = open("current_person.txt", mode='w', encoding="utf-8")
+            self.file.write(self.l + ' ' + self.money)
+            self.file.close()
+            self.close()
+        self.text.show()
+
+
+def start_screen():
+    fon = pygame.transform.scale(load_image('fon1.jpg'), size)
+    screen.blit((fon), (0, 0))
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                w = Reg()
+                w.show()
+                return
+        pygame.display.flip()
 
 
 class Menu_screen:
@@ -61,14 +109,15 @@ class Menu_screen:
             intro_rect.x = (1200 - intro_rect.width)//2
             text_coord += intro_rect.height
             screen.blit(string_rendered, intro_rect)
-
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    terminate()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    Menu_screen.on_click(self, event.pos)
-            pygame.display.flip()
+        self.f = open("current_person.txt", mode='r', encoding="utf-8").read()
+        if len(self.f) > 0:
+            while True:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        terminate()
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        Menu_screen.on_click(self, event.pos)
+                pygame.display.flip()
 
     def on_click(self, cell_coords):
         x = cell_coords[0]
@@ -83,9 +132,17 @@ class Menu_screen:
             Information()
 
 
-class Records: #рекорды
-    def __init__(self):
-        pass
+class Player(Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(hero_group)
+        self.image = player_image
+        self.rect = self.image.get_rect().move(tile_width * pos_x + 90, tile_height * pos_y + 80)
+        self.pos = (pos_x, pos_y)
+
+    def move(self, x, y):
+        self.pos = (x, y)
+        self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
+                                               tile_height * self.pos[1] + 80)
 
 
 class New_Game: #настройки игры
@@ -237,6 +294,204 @@ class New_Game: #настройки игры
             Ochib(0)
 
 
+class Game:
+    def __init__(self):
+        money_player = int(open("current_person.txt", mode='r', encoding="utf-8").read().split(' ')[1])
+        money_brag = 0
+        fon = pygame.transform.scale(load_image('fon_game.jpg'), size)
+        screen.blit((fon), (0, 0))
+        image = pygame.transform.scale(load_image('монета.png'), (40, 40))
+        screen.blit((image), (22, 22))
+        screen.blit((image), (1078, 22))
+        xp = 15
+        for i in range(xp):
+            pygame.draw.rect(screen, (0, 128, 0), (i * 15 + 200, 22, 10, 40))
+        font = pygame.font.Font(None, 40)
+        string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 30
+        intro_rect.x = 65
+        screen.blit(string_rendered, intro_rect)
+        string_rendered = font.render(f'X{money_brag}', 1, (255, 242, 0))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 30
+        intro_rect.x = 1120
+        screen.blit(string_rendered, intro_rect)
+        player = None
+        running = True
+        global level_map, max_x, max_y
+        level_map = load_level('map')
+        player, max_x, max_y = generate_level(level_map)
+
+        self.time_start = time.time()
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP:
+                        Dvech(player, 'up')
+                    if event.key == pygame.K_DOWN:
+                        Dvech(player, 'down')
+                    if event.key == pygame.K_RIGHT:
+                        Dvech(player, 'right')
+                    if event.key == pygame.K_LEFT:
+                        Dvech(player, 'left')
+            sprite_group.draw(screen)
+            self.change_time()
+            hero_group.draw(screen)
+            pygame.display.flip()
+
+
+    def change_time(self):
+        itog_time = time.time() - self.time_start
+        font = pygame.font.Font(None, 40)
+        string_rendered = font.render(f'time:{itog_time}', 1, (1078, 300, 0))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 30
+        intro_rect.x = 65
+        screen.blit(string_rendered, intro_rect)
+
+    def change_money(self):
+        font = pygame.font.Font(None, 40)
+        string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 30
+        intro_rect.x = 65
+        screen.blit(string_rendered, intro_rect)
+
+
+class End:
+    def __init__(self):
+        text = open("current_person.txt", mode='r', encoding="utf-8").read().split(' ')
+        for i in range(3):
+            if int(person_clici[i]) < 3:
+                t = int(person_clici[i])
+                person_clici[i] = str(t + 1)
+                con = sqlite3.connect('data/побег')
+                cur = con.cursor()
+                cur.execute("""UPDATE users
+                                    SET game = (?)
+                                    WHERE login == (?)
+                                   """, (' '.join(person_clici), text[0]))
+                con.commit()
+
+
+class Education:  # обучение
+    def __init__(self):
+        fon = pygame.transform.scale(load_image('fonchik.jpg'), size)
+        screen.blit((fon), (0, 0))
+        font = pygame.font.Font(None, 30)
+        im = pygame.image.load('data/кменю.png')
+        screen.blit((im), (20, 590))
+        im = pygame.image.load('data/кигре.png')
+        screen.blit((im), (1080, 590))
+        lines = ['Обучение:',
+                 'Игрок передвигается с помощью стрелочек. Задача игрока - выйти из хранилища.',
+                 'Для этого нужно собирать монеты, но будьте внимательны, охранники хранилища будут вам мешать!',
+                 'Чтобы выйти из хранилища надо заплатить. Только собрав определенное количество монет хранилище',
+                 'выпустит вас.',
+                 '                                 Удачи!']
+        # МОЖНО МЕНЯТЬ lines
+        for i in range(len(lines)):
+            string_rendered = font.render(lines[i], 1, pygame.Color('white'))
+            intro_rect = string_rendered.get_rect()
+            intro_rect.top = 50 * (i + 1)
+            intro_rect.x = 50
+            screen.blit(string_rendered, intro_rect)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    Education.on_click(self, event.pos)
+            pygame.display.flip()
+        pygame.quit()
+
+    def on_click(self, cell_coords):
+        x = cell_coords[0]
+        y = cell_coords[1]
+        if 20 < x < 120 and 590 < y < 640:
+            Menu_screen()
+        elif 1080 < x < 1180 and 590 < y < 640:
+            New_Game()
+
+
+class Information:  # информация о фрагах и персонажах
+    def __init__(self):
+        fon = pygame.transform.scale(load_image('fonchik.jpg'), size)
+        personaj = pygame.transform.scale(load_image('mar_info.png'), (200, 200))
+        enemy = pygame.transform.scale(load_image('enemy.png'), (300, 300))
+        screen.blit((fon), (0, 0))
+        screen.blit((enemy), (900, 210))
+        screen.blit((personaj), (920, 30))
+        font = pygame.font.Font(None, 30)
+        im = pygame.image.load('data/кменю.png')
+        screen.blit((im), (20, 590))
+        im = pygame.image.load('data/кигре.png')
+        screen.blit((im), (1080, 590))
+        lines = ['Главный герой: ',
+                 'Различают три типа главного героя, которые вы можете открывать постепенно,',
+                 'за определенное количество монет!',
+                 '',
+                 'Враги:',
+                 'Враги также могут отличаться не только картинкой, но и скоростью появления,',
+                 'своим количеством. Это все создано, чтобы вам было интересней играть!',
+                 '',
+                 '                                                                         Желаем удачи!']
+        for i in range(len(lines)):
+            string_rendered = font.render(lines[i], 1, pygame.Color('white'))
+            intro_rect = string_rendered.get_rect()
+            intro_rect.top = 50 * (i + 1)
+            intro_rect.x = 50
+            screen.blit(string_rendered, intro_rect)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    Information.on_click(self, event.pos)
+            pygame.display.flip()
+        pygame.quit()
+
+    def on_click(self, cell_coords):
+        x = cell_coords[0]
+        y = cell_coords[1]
+        if 20 < x < 120 and 590 < y < 640:
+            Menu_screen()
+        elif 1080 < x < 1180 and 590 < y < 640:
+            New_Game()
+
+
+class Records: #рекорды
+    def __init__(self):
+        pass
+
+
+def Music():
+    # + надо изменение музыки когда враг близко
+    pygame.init()
+    pygame.mixer.music.load('data/star_musik.mp3')
+    pygame.mixer.music.play(-1)
+    pygame.mixer.music.set_volume(0.025)
+
+
+def load_image(name, color_key=None):
+    fullname = os.path.join('data', name)
+    try:
+        image = pygame.image.load(fullname)
+    except pygame.error as message:
+        print('Не удаётся загрузить:', name)
+        raise SystemExit(message)
+    image = image.convert_alpha()
+    return image
+
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+
 money_group = pygame.sprite.Group()
 tile_images = {'wall': load_image('box.png'),
               'empty': load_image('grass.png'),
@@ -261,10 +516,10 @@ def Ochib(set):
         line = ["Вам не доступен этот уровень,", "пройдите уровень меньше. "]
     elif set == 3:
         font = pygame.font.Font(None, 30)
-        line = ["Вам не доступен этот персонаж, ", "веберите другого персонажа."]
+        line = ["Вам не доступен этот персонаж,", "выберите другого персонажа."]
     elif set == 4:
         font = pygame.font.Font(None, 30)
-        line = ["Вам не доступен этот враг, ", "веберите другого врага."]
+        line = ["Вам не доступен этот враг,", "выберите другого врага."]
     h = 560
     for i in range(len(line)):
         string_rendered = font.render(line[i], 1, pygame.Color('white'))
@@ -276,7 +531,12 @@ def Ochib(set):
 
 
 def setting():
-    global clici, person_clici
+    text = open("glici.txt", mode='r', encoding="utf-8").read().split('\n')
+    person_clici = []
+    for line in text:
+        if line.split(' ')[0] == open("current_person.txt", mode='r', encoding="utf-8").read().split(' ')[0]:
+            for k in line.split(' ')[1:]:
+                person_clici.append(int(k))
     if 0 in clici:
         return 1
     elif clici[0] > int(person_clici[0]):
@@ -322,24 +582,6 @@ def generate_level(level):
     return new_player, x + 1, y + 1
 
 
-class SpriteGroup(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-
-    def get_event(self, event):
-        for i in self:
-            i.get_event(event)
-
-
-class Sprite(pygame.sprite.Sprite):
-    def __init__(self, group):
-        super().__init__(group)
-        self.rect = None
-
-    def get_event(self, event):
-        pass
-
-
 class Tile(Sprite):
     def __init__(self, tile_type, pos_x, pos_y):
         super().__init__(sprite_group)
@@ -370,19 +612,6 @@ class Money(Sprite): #у меня не получилось подключить
         self.image = self.frames[self.cur_frame] #
 
 
-class Player(Sprite):
-    def __init__(self, pos_x, pos_y):
-        super().__init__(hero_group)
-        self.image = player_image
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 90, tile_height * pos_y + 80)
-        self.pos = (pos_x, pos_y)
-
-    def move(self, x, y):
-        self.pos = (x, y)
-        self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
-                                               tile_height * self.pos[1] + 80)
-
-
 def terminate():
     pygame.quit()
     sys.exit()
@@ -403,10 +632,13 @@ player, max_x, max_y = None, None, None
 def Money_kac(person, x, y):
     if person == 'hero':
         Tile('empty', x, y)
+        player_for_records.money += 1
+    return 0
 
 
 def Dvech(hero, xod):
     x, y = hero.pos
+    global money_player
     if xod == 'up':
         if y > 0:
             if level_map[y - 1][x] == '.':
@@ -416,7 +648,7 @@ def Dvech(hero, xod):
                 End()
             if level_map[y - 1][x] == '$':
                 hero.move(x, y - 1)
-                Money_kac('hero', x, y)
+                money_player += Money_kac('hero', x, y - 1)
     elif xod == 'down':
         if y < max_y - 1:
             if level_map[y + 1][x] == '.':
@@ -426,7 +658,7 @@ def Dvech(hero, xod):
                 End()
             if level_map[y + 1][x] == '$':
                 hero.move(x, y + 1)
-            hero.move(x, y + 1)
+                money_player += Money_kac('hero', x, y + 1)
     elif xod == 'left':
         if x > 0:
             if level_map[y][x - 1] == '.':
@@ -436,6 +668,7 @@ def Dvech(hero, xod):
                 End()
             if level_map[y][x - 1] == '$':
                 hero.move(x - 1, y)
+                money_player += Money_kac('hero', x - 1, y)
     elif xod == 'right':
         if x < max_x - 1:
             if level_map[y][x + 1] == '.':
@@ -445,125 +678,7 @@ def Dvech(hero, xod):
                 End()
             if level_map[y][x + 1] == '$':
                 hero.move(x + 1, y)
-
-
-class Game:
-    def __init__(self):
-        money_player = 0
-        money_brag = 0
-        fon = pygame.transform.scale(load_image('fon_game.jpg'), size)
-        screen.blit((fon), (0, 0))
-        image = pygame.transform.scale(load_image('монета.png'), (40, 40))
-        screen.blit((image), (22, 22))
-        screen.blit((image), (1078, 22))
-        xp = 15
-        for i in range(xp):
-            pygame.draw.rect(screen, (0, 128, 0), (i * 15 + 200, 22, 10, 40))
-        font = pygame.font.Font(None, 40)
-        string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
-        intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 65
-        screen.blit(string_rendered, intro_rect)
-        string_rendered = font.render(f'X{money_brag}', 1, (255, 242, 0))
-        intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 1120
-        screen.blit(string_rendered, intro_rect)
-        player = None
-        running = True
-        global level_map, max_x, max_y
-        level_map = load_level('map')
-        player, max_x, max_y = generate_level(level_map)
-        while running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        Dvech(player, 'up')
-                    if event.key == pygame.K_DOWN:
-                        Dvech(player, 'down')
-                    if event.key == pygame.K_RIGHT:
-                        Dvech(player, 'right')
-                    if event.key == pygame.K_LEFT:
-                        Dvech(player, 'left')
-            sprite_group.draw(screen)
-            hero_group.draw(screen)
-            pygame.display.flip()
-
-
-class End:
-    def __init__(self):
-        global person_clici
-        for i in range(3):
-            if int(person_clici[i]) < 3:
-                t = int(person_clici[i])
-                person_clici[i] = str(t + 1)
-                con = sqlite3.connect('data/побег')
-                cur = con.cursor()
-                cur.execute("""UPDATE Reg
-                                    SET game = (?)
-                                    WHERE login == (?)
-                                   """, (' '.join(person_clici), 'Test'))
-                con.commit()
-
-
-class Education: #обучение
-    def __init__(self):
-        fon = pygame.transform.scale(load_image('fonchik.jpg'), size)
-        screen.blit((fon), (0, 0))
-        font = pygame.font.Font(None, 30)
-        im = pygame.image.load('data/кменю.png')
-        screen.blit((im), (20, 590))
-        im = pygame.image.load('data/кигре.png')
-        screen.blit((im), (1080, 590))
-        lines = ['Обучение:',
-                 'Игрок передвигается с помощью стрелочек. Задача игрока - выйти из хранилища.',
-                 'Для этого нужно собирать монеты, но будьте внимательны, охранники хранилища будут вам мешать!',
-                 'Чтобы выйти из хранилища надо заплатить. Только собрав определенное количество монет хранилище',
-                 'выпустит вас.',
-                 '                                 Удачи!']
-        # МОЖНО МЕНЯТЬ lines
-        for i in range(len(lines)):
-            string_rendered = font.render(lines[i], 1, pygame.Color('white'))
-            intro_rect = string_rendered.get_rect()
-            intro_rect.top = 50 * (i + 1)
-            intro_rect.x = 50
-            screen.blit(string_rendered, intro_rect)
-        while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    terminate()
-                elif event.type == pygame.MOUSEBUTTONDOWN:
-                    Education.on_click(self, event.pos)
-            pygame.display.flip()
-        pygame.quit()
-
-    def on_click(self, cell_coords):
-        x = cell_coords[0]
-        y = cell_coords[1]
-        if 20 < x < 120 and 590 < y < 640:
-            Menu_screen()
-        elif 1080 < x < 1180 and 590 < y < 640:
-            New_Game()
-
-
-class Information: #информация о фрагах и персонажах
-    def __init__(self):
-        pass
-
-
-def start_screen():
-    fon = pygame.transform.scale(load_image('fon1.jpg'), size)
-    screen.blit((fon), (0, 0))
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                return
-        pygame.display.flip()
+                money_player += Money_kac('hero', x + 1, y)
 
 
 if __name__ == '__main__':
