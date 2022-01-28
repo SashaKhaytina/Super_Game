@@ -25,6 +25,7 @@ ymnosh = 1 #при всяких баффов
 xp = 15
 f = True
 
+
 class SpriteGroup(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
@@ -123,7 +124,6 @@ class Menu_screen:
             intro_rect.x = (1200 - intro_rect.width)//2
             text_coord += intro_rect.height
             screen.blit(string_rendered, intro_rect)
-
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -203,7 +203,7 @@ class New_Game: #настройки игры
         intro_rect.top = 560
         intro_rect.x = 910
         screen.blit(string_rendered, intro_rect)
-        while True:
+        while running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     terminate()
@@ -327,11 +327,7 @@ class Game:
         for i in range(xp):
             pygame.draw.rect(screen, (0, 128, 0), (i * 15 + 200, 22, 10, 40))
         font = pygame.font.Font(None, 40)
-        string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
-        intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 65
-        screen.blit(string_rendered, intro_rect)
+        change_money()
         string_rendered = font.render(f'X{money_brag}', 1, (255, 242, 0))
         intro_rect = string_rendered.get_rect()
         intro_rect.top = 30
@@ -356,45 +352,53 @@ class Game:
                         Dvech(player, 'right')
                     if event.key == pygame.K_LEFT:
                         Dvech(player, 'left')
-            sprite_group.draw(screen)
+            pygame.draw.rect(screen, (10, 10, 10), (25, 600, 150, 25))
             self.change_time()
+            pygame.display.update()
+            sprite_group.draw(screen)
             hero_group.draw(screen)
             pygame.display.flip()
 
-
     def change_time(self):
-        itog_time = time.time() - self.time_start
+        itog_time = round(time.time() - self.time_start, 2)
         font = pygame.font.Font(None, 40)
-        string_rendered = font.render(f'time:{itog_time}', 1, (1078, 300, 0))
+        string_rendered = font.render(f'time:{itog_time}', 1, (255, 255, 0))
         intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 65
+        intro_rect.top = 600
+        intro_rect.x = 30
         screen.blit(string_rendered, intro_rect)
 
-    def change_money(self):
-        font = pygame.font.Font(None, 40)
-        string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
-        intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 65
-        screen.blit(string_rendered, intro_rect)
+
+def change_money():
+    font = pygame.font.Font(None, 40)
+    string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
+    intro_rect = string_rendered.get_rect()
+    intro_rect.top = 30
+    intro_rect.x = 65
+    pygame.draw.rect(screen, (56, 56, 56), (80, 13, 40, 55))
+    screen.blit(string_rendered, intro_rect)
 
 
 class End:
     def __init__(self):
-        text = open("current_person.txt", mode='r', encoding="utf-8").read().split(' ')
+        sprite_group.remove()
+        screen.fill((0, 0, 0))
+        fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
+        screen.blit((fon), (0, 0))
+        im = pygame.image.load('data/кменю.png')
+        screen.blit((im), (20, 590))
         # добавление в базу данных money_player * ymnosh
-        for i in range(3):
-            if int(person_clici[i]) < 3:
-                t = int(person_clici[i])
-                person_clici[i] = str(t + 1)
-                con = sqlite3.connect('data/побег') # нужно перезаписывать в базу данных
-                cur = con.cursor()
-                cur.execute("""UPDATE users
-                                    SET game = (?)
-                                    WHERE login == (?)
-                                   """, (' '.join(person_clici), text[0]))
-                con.commit()
+        #for i in range(3):
+        #    if int(person_clici[i]) < 3:
+        #        t = int(person_clici[i])
+        #        person_clici[i] = str(t + 1)
+        #        con = sqlite3.connect('data/побег') # нужно перезаписывать в базу данных
+        #        cur = con.cursor()
+        #        cur.execute("""UPDATE users
+        #                            SET game = (?)
+        #                            WHERE login == (?)
+        #                           """, (' '.join(person_clici), text[0]))
+        #        con.commit()
 
 
 class Education:  # обучение
@@ -504,7 +508,7 @@ class Information:  # информация о фрагах и персонажа
 #                                    WHERE login = '{person_login}'""")
 #                self.db.commit()
 #        else:
-#            self.sql.execute(f"""INSERT INTO records(login, money, time) 
+#            self.sql.execute(f"""INSERT INTO records(login, money, time)
 #                                    VALUES('{person_login}', {money}, {time})""")
 #            self.db.commit()
 #        self.show_db()
@@ -584,12 +588,7 @@ def Ochib(set):
 
 
 def setting():
-    text = open("glici.txt", mode='r', encoding="utf-8").read().split('\n')
-    person_clici = []
-    for line in text:
-        if line.split(' ')[0] == open("current_person.txt", mode='r', encoding="utf-8").read().split(' ')[0]:
-            for k in line.split(' ')[1:]:
-                person_clici.append(int(k))
+    global clici, person_clici
     if 0 in clici:
         return 1
     elif clici[0] > int(person_clici[0]):
@@ -615,7 +614,6 @@ def generate_level(level):
                     level[y][x] = '.'
                 else:
                     level[y][x] = '$'
-
     new_player, x, y = None, None, None
     for y in range(len(level)):
         for x in range(len(level[y])):
@@ -691,19 +689,31 @@ def Dvech(hero, xod):
                 hero.move(x, y - 1)
             if level_map[y - 1][x] == '*':
                 hero.move(x, y - 1)
-                End()
+                if money_player > 15:
+                    End()
+                else:
+                    Not_Money()
             if level_map[y - 1][x] == '$':
+                level_map[y-1][x] = '.'
+                Tile('empty', x, y - 1)
                 hero.move(x, y - 1)
-                money_player +=1
+                change_money()
+                money_player += 1
     elif xod == 'down':
         if y < max_y - 1:
             if level_map[y + 1][x] == '.':
                 hero.move(x, y + 1)
             if level_map[y + 1][x] == '*':
                 hero.move(x, y + 1)
-                End()
+                if money_player > 15:
+                    End()
+                else:
+                    Not_Money()
             if level_map[y + 1][x] == '$':
                 hero.move(x, y + 1)
+                level_map[y + 1][x] = '.'
+                Tile('empty', x, y + 1)
+                change_money()
                 money_player += 1
     elif xod == 'left':
         if x > 0:
@@ -711,9 +721,15 @@ def Dvech(hero, xod):
                 hero.move(x - 1, y)
             if level_map[y][x - 1] == '*':
                 hero.move(x - 1, y)
-                End()
+                if money_player > 15:
+                    End()
+                else:
+                    Not_Money()
             if level_map[y][x - 1] == '$':
                 hero.move(x - 1, y)
+                level_map[y][x - 1] = '.'
+                Tile('empty', x - 1, y)
+                change_money()
                 money_player += 1
     elif xod == 'right':
         if x < max_x - 1:
@@ -721,10 +737,20 @@ def Dvech(hero, xod):
                 hero.move(x + 1, y)
             if level_map[y][x + 1] == '*':
                 hero.move(x + 1, y)
-                End()
+                if money_player > 15:
+                    End()
+                else:
+                    Not_Money()
             if level_map[y][x + 1] == '$':
                 hero.move(x + 1, y)
+                level_map[y][x + 1] = '.'
+                Tile('empty', x + 1, y)
+                change_money()
                 money_player += 1
+
+
+def Not_Money():
+    pass
 
 
 if __name__ == '__main__':
@@ -733,4 +759,3 @@ if __name__ == '__main__':
     Music()
     start_screen()
     Menu_screen()
-    #app = QApplication(sys.argv)
