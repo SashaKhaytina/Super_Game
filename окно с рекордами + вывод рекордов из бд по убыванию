@@ -1,0 +1,55 @@
+import sys
+import sqlite3
+from PyQt5.QtSql import QSqlDatabase, QSqlTableModel
+from PyQt5.QtWidgets import QWidget, QTableView, QApplication, QMainWindow, QRadioButton, QTextBrowser
+from PyQt5 import uic
+
+
+person_login = 'lala'
+time = 70
+money = 80
+
+
+class Record(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        global person_login, time, money
+        uic.loadUi('data/record.ui', self)
+        self.db = sqlite3.connect("data/info.db")
+        self.sql = self.db.cursor()
+        result = self.sql.execute("""SELECT * FROM records WHERE login = ?""",
+                                  (person_login,)).fetchall()
+        if len(result) > 0:
+            if result[0][1] < money:
+                self.sql.execute(f"""UPDATE records
+                                    SET money = {money}
+                                    WHERE login = '{person_login}'""")
+                self.db.commit()
+            if result[0][2] < time:
+                self.sql.execute(f"""UPDATE records
+                                    SET time = {time}
+                                    WHERE login = '{person_login}'""")
+                self.db.commit()
+        else:
+            self.sql.execute(f"""INSERT INTO records(login, money, time) 
+                                    VALUES('{person_login}', {money}, {time})""")
+            self.db.commit()
+        self.show_db()
+        self.radioButton.clicked.connect(self.show_db)
+        self.radioButton_2.clicked.connect(self.show_db)
+
+    def show_db(self):
+        self.textBrowser.clear()
+        vid = 'money' if self.radioButton.isChecked() else 'time'
+        result = self.sql.execute(f"""SELECT * FROM records ORDER BY {vid} desc""")
+        output = []
+        for i in result:
+            output.append('  -  '.join([str(k) for k in i]))
+        self.textBrowser.setText('\n'.join(output))
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    w = Record()
+    w.show()
+    sys.exit(app.exec_())
