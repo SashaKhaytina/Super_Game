@@ -20,7 +20,8 @@ person_login = ''
 person_money = 0 #для теста, потом изменится
 money_brag = 0
 tile_width = tile_height = 50
-money = 0
+money_record = 0
+time_record = 0
 ymnosh = 1 #при всяких баффов
 xp = 15
 f = True
@@ -76,10 +77,14 @@ class Reg(QMainWindow):
                                       (self.l,)).fetchall()
             if len(result) > 0:
                 if result[0][1] == self.p:
-                    global person_clici, person_money, person_login
+                    global person_clici, person_money, person_login, money_record, time_record
+                    records_data = self.sql.execute("""SELECT * FROM records WHERE login = (?)""",
+                                                    (self.l,)).fetchall()
                     person_clici = [int(i) for i in result[0][3].split(' ')]
                     person_money = result[0][2]
                     person_login = self.l
+                    money_record = records_data[0][1]
+                    time_record = records_data[0][2]
                     self.close()
                 else:
                     self.label_3.setText("Неправильный пароль!")
@@ -325,7 +330,6 @@ money_player = 0
 
 class Game:
     def __init__(self):
-        money_player = 0
         money_brag = 0
         fon = pygame.transform.scale(load_image('fon_game.jpg'), size)
         screen.blit((fon), (0, 0))
@@ -389,24 +393,30 @@ def change_money():
 
 class End:
     def __init__(self):
-        sprite_group.remove()
+        #sprite_group.remove()
+        #hero_group.remove()
+        #money_group.remove()
         screen.fill((0, 0, 0))
         fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
         screen.blit((fon), (0, 0))
         im = pygame.image.load('data/кменю.png')
         screen.blit((im), (20, 590))
         # добавление в базу данных money_player * ymnosh
-        #for i in range(3):
-        #    if int(person_clici[i]) < 3:
-        #        t = int(person_clici[i])
-        #        person_clici[i] = str(t + 1)
-        #        con = sqlite3.connect('data/побег') # нужно перезаписывать в базу данных
-        #        cur = con.cursor()
-        #        cur.execute("""UPDATE users
-        #                            SET game = (?)
-        #                            WHERE login == (?)
-        #                           """, (' '.join(person_clici), text[0]))
-        #        con.commit()
+        self.db = sqlite3.connect("data/info.db")
+        self.sql = self.db.cursor()
+        global person_clici, money_player, person_login, person_time, time_record, money_record, person_money
+        for i in range(3):
+            if int(person_clici[i]) < 3:
+                person_clici[i] += 1
+        self.sql.execute("""UPDATE users 
+        SET clici = (?) 
+        WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
+        self.db.commit()
+        if time_record < person_time:
+            time_record = person_time
+        if money_record < money_player * ymnosh:
+            money_record = money_player * ymnosh
+        person_money = person_money + (money_player * ymnosh)
 
 
 class Education:  # обучение
@@ -503,26 +513,26 @@ class Information:  # информация о фрагах и персонажа
 class Record(QMainWindow):
     def __init__(self):
         super().__init__()
-        global person_login, person_time, money
+        global person_login, record_time, record_money
         uic.loadUi('data/record.ui', self)
         self.db = sqlite3.connect("data/info.db")
         self.sql = self.db.cursor()
         result = self.sql.execute("""SELECT * FROM records WHERE login = ?""",
                                   (person_login,)).fetchall()
         if len(result) > 0:
-            if result[0][1] < money:
+            if result[0][1] < record_money:
                 self.sql.execute(f"""UPDATE records
-                                    SET money = {money}                                    
+                                    SET money = {record_money}                                    
                                     WHERE login = '{person_login}'""")
                 self.db.commit()
-            if result[0][2] < person_time:
+            if result[0][2] < record_time:
                 self.sql.execute(f"""UPDATE records
-                                    SET time = {person_time}
+                                    SET time = {record_time}
                                     WHERE login = '{person_login}'""")
                 self.db.commit()
         else:
             self.sql.execute(f"""INSERT INTO records(login, money, time) 
-            VALUES('{person_login}', {money}, {person_time})""")
+            VALUES('{person_login}', {record_money}, {record_time})""")
             self.db.commit()
         self.show_db()
         self.radioButton.clicked.connect(self.show_db)
@@ -615,7 +625,7 @@ def setting():
 
 
 def generate_level(level):
-    money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0]
+    money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     k = 0
     for y in range(len(level)):
         for x in range(len(level[y])):
@@ -702,7 +712,7 @@ def Dvech(hero, xod):
                 hero.move(x, y - 1)
             if level_map[y - 1][x] == '*':
                 hero.move(x, y - 1)
-                if money_player > 15:
+                if money_player >= 10:
                     End()
                 else:
                     Not_Money()
@@ -710,15 +720,15 @@ def Dvech(hero, xod):
                 level_map[y-1][x] = '.'
                 Tile('empty', x, y - 1)
                 hero.move(x, y - 1)
-                change_money()
                 money_player += 1
+                change_money()
     elif xod == 'down':
         if y < max_y - 1:
             if level_map[y + 1][x] == '.':
                 hero.move(x, y + 1)
             if level_map[y + 1][x] == '*':
                 hero.move(x, y + 1)
-                if money_player > 15:
+                if money_player >= 10:
                     End()
                 else:
                     Not_Money()
@@ -726,15 +736,15 @@ def Dvech(hero, xod):
                 hero.move(x, y + 1)
                 level_map[y + 1][x] = '.'
                 Tile('empty', x, y + 1)
-                change_money()
                 money_player += 1
+                change_money()
     elif xod == 'left':
         if x > 0:
             if level_map[y][x - 1] == '.':
                 hero.move(x - 1, y)
             if level_map[y][x - 1] == '*':
                 hero.move(x - 1, y)
-                if money_player > 15:
+                if money_player >= 10:
                     End()
                 else:
                     Not_Money()
@@ -742,15 +752,15 @@ def Dvech(hero, xod):
                 hero.move(x - 1, y)
                 level_map[y][x - 1] = '.'
                 Tile('empty', x - 1, y)
-                change_money()
                 money_player += 1
+                change_money()
     elif xod == 'right':
         if x < max_x - 1:
             if level_map[y][x + 1] == '.':
                 hero.move(x + 1, y)
             if level_map[y][x + 1] == '*':
                 hero.move(x + 1, y)
-                if money_player > 15:
+                if money_player >= 10:
                     End()
                 else:
                     Not_Money()
@@ -758,8 +768,8 @@ def Dvech(hero, xod):
                 hero.move(x + 1, y)
                 level_map[y][x + 1] = '.'
                 Tile('empty', x + 1, y)
-                change_money()
                 money_player += 1
+                change_money()
 
 
 def Not_Money():
