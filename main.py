@@ -452,11 +452,16 @@ class Education:  # обучение
 class Information:  # информация о фрагах и персонажах
     def __init__(self):
         fon = pygame.transform.scale(load_image('fonchik.jpg'), size)
-        personaj = pygame.transform.scale(load_image('mar_info.png'), (200, 200))
         enemy = pygame.transform.scale(load_image('enemy.png'), (300, 300))
+        hero1 = pygame.transform.scale(load_image('герой1.png'), (60, 60))
+        hero2 = pygame.transform.scale(load_image('герой2.png'), (60, 60))
+        hero3 = pygame.transform.scale(load_image('герой3.png'), (60, 60))
         screen.blit((fon), (0, 0))
         screen.blit((enemy), (900, 210))
-        screen.blit((personaj), (920, 30))
+
+        screen.blit((hero1), (910, 60))
+        screen.blit((hero2), (980, 60))
+        screen.blit((hero3), (1070, 60))
         font = pygame.font.Font(None, 30)
         im = pygame.image.load('data/кменю.png')
         screen.blit((im), (20, 590))
