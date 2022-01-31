@@ -513,26 +513,26 @@ class Information:  # информация о фрагах и персонажа
 class Record(QMainWindow):
     def __init__(self):
         super().__init__()
-        global person_login, record_time, record_money
+        global person_login, time_record, money_record
         uic.loadUi('data/record.ui', self)
         self.db = sqlite3.connect("data/info.db")
         self.sql = self.db.cursor()
         result = self.sql.execute("""SELECT * FROM records WHERE login = ?""",
                                   (person_login,)).fetchall()
         if len(result) > 0:
-            if result[0][1] < record_money:
+            if result[0][1] < money_record:
                 self.sql.execute(f"""UPDATE records
-                                    SET money = {record_money}                                    
+                                    SET money = {money_record}                                    
                                     WHERE login = '{person_login}'""")
                 self.db.commit()
-            if result[0][2] < record_time:
+            if result[0][2] < time_record:
                 self.sql.execute(f"""UPDATE records
-                                    SET time = {record_time}
+                                    SET time = {time_record}
                                     WHERE login = '{person_login}'""")
                 self.db.commit()
         else:
             self.sql.execute(f"""INSERT INTO records(login, money, time) 
-            VALUES('{person_login}', {record_money}, {record_time})""")
+            VALUES('{person_login}', {money_record}, {time_record})""")
             self.db.commit()
         self.show_db()
         self.radioButton.clicked.connect(self.show_db)
