@@ -1,0 +1,64 @@
+import sys
+import sqlite3
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, \
+    QLabel, QLineEdit, QAbstractSpinBox
+from PyQt5.QtGui import QPixmap
+from PyQt5 import uic
+
+
+class Reg(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.money = 50
+        uic.loadUi('reg.ui', self)  # Загружаем дизайн
+        self.db = sqlite3.connect("info.db")
+        self.sql = self.db.cursor()
+        self.sql.execute("""CREATE TABLE IF NOT EXISTS users(
+                    login TEXT,
+                    password TEXT,
+                    current_money INTEGER,
+                    clici TEXT)""")
+        self.sql.execute("""CREATE TABLE IF NOT EXISTS records(
+                            login TEXT,
+                            money INTEGER,
+                            time INTEGER)""")
+        self.db.commit()
+        self.show()
+        self.pushButton.clicked.connect(self.check)
+
+    def check(self):
+        self.l = self.lineEdit.text()
+        self.p = self.lineEdit_2.text()
+        if self.l == '' or self.p == '':
+            self.label_3.setText("Заполните поля!")
+            self.label_3.adjustSize()
+        else:
+            result = self.sql.execute("""SELECT * FROM users WHERE login = ?""",
+                                      (self.l,)).fetchall()
+            if len(result) > 0:
+                if result[0][1] == self.p:
+                    global person_clici, person_money, person_login
+                    person_clici = [int(i) for i in result[0][3].split(' ')]
+                    person_money = result[0][2]
+                    person_login = self.l
+                    self.close()
+                else:
+                    self.label_3.setText("Неправильный пароль!")
+                    self.label_3.adjustSize()
+                    self.lineEdit_2.setText("")
+            else:
+                self.sql.execute(f"""INSERT INTO users(login, password, current_money, clici) 
+                        VALUES('{self.l}', '{self.p}', {self.money}, '0, 0, 0, 0, 0')""")
+                self.db.commit()
+                global person_clici, person_money, person_login
+                person_clici = [0, 0, 0, 0, 0]
+                person_money = self.money
+                person_login = self.l
+                self.close()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    w = Reg()
+    w.show()
+    sys.exit(app.exec_())
