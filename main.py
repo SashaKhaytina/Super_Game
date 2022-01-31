@@ -26,6 +26,7 @@ ymnosh = 1 #при всяких баффов
 xp = 15
 f = True
 person_time = 0
+end = False
 
 
 class SpriteGroup(pygame.sprite.Sprite):
@@ -346,15 +347,15 @@ class Game:
         intro_rect.x = 1120
         screen.blit(string_rendered, intro_rect)
         player = None
-        running = True
-        global level_map, max_x, max_y
-        level_map = load_level('map')
-        player, max_x, max_y = generate_level(level_map)
+        self.running = True
+        global level_map, max_x, max_y, end, clici
+        level_map = load_level(levers[clici[0]])
+        player, max_x, max_y = generate_level(level_map, 1)
         self.time_start = time.time()
-        while running:
+        while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    running = False
+                    self.running = False
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_UP:
                         Dvech(player, 'up')
@@ -364,12 +365,37 @@ class Game:
                         Dvech(player, 'right')
                     if event.key == pygame.K_LEFT:
                         Dvech(player, 'left')
+            if end:
+                self.End()
             pygame.draw.rect(screen, (10, 10, 10), (25, 600, 150, 25))
             self.change_time()
             pygame.display.update()
             sprite_group.draw(screen)
             hero_group.draw(screen)
             pygame.display.flip()
+
+    def End(self):
+        screen.fill((0, 0, 0))
+        self.running = False
+        #fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
+        #screen.blit((fon), (0, 0))
+        im = pygame.image.load('data/кменю.png')
+        screen.blit((im), (20, 590))
+        self.db = sqlite3.connect("data/info.db")
+        self.sql = self.db.cursor()
+        global person_clici, money_player, person_login, person_time, time_record, money_record, person_money
+        for i in range(3):
+            if int(person_clici[i]) < 3:
+                person_clici[i] += 1
+        self.sql.execute("""UPDATE users 
+        SET clici = (?) 
+        WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
+        self.db.commit()
+        if time_record < person_time:
+            time_record = person_time
+        if money_record < money_player * ymnosh:
+            money_record = money_player * ymnosh
+        person_money = person_money + (money_player * ymnosh)
 
     def change_time(self):
         itog_time = round(time.time() - self.time_start, 2)
@@ -389,34 +415,6 @@ def change_money():
     intro_rect.x = 65
     pygame.draw.rect(screen, (56, 56, 56), (80, 13, 40, 55))
     screen.blit(string_rendered, intro_rect)
-
-
-class End:
-    def __init__(self):
-        #sprite_group.remove()
-        #hero_group.remove()
-        #money_group.remove()
-        screen.fill((0, 0, 0))
-        fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
-        screen.blit((fon), (0, 0))
-        im = pygame.image.load('data/кменю.png')
-        screen.blit((im), (20, 590))
-        # добавление в базу данных money_player * ymnosh
-        self.db = sqlite3.connect("data/info.db")
-        self.sql = self.db.cursor()
-        global person_clici, money_player, person_login, person_time, time_record, money_record, person_money
-        for i in range(3):
-            if int(person_clici[i]) < 3:
-                person_clici[i] += 1
-        self.sql.execute("""UPDATE users 
-        SET clici = (?) 
-        WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
-        self.db.commit()
-        if time_record < person_time:
-            time_record = person_time
-        if money_record < money_player * ymnosh:
-            money_record = money_player * ymnosh
-        person_money = person_money + (money_player * ymnosh)
 
 
 class Education:  # обучение
@@ -580,6 +578,7 @@ tile_images = {'wall': load_image('box.png'),
 player_image = {'1': load_image('герой1.png'),
                 '2': load_image('герой2.png'),
                 '3': load_image('герой3.png')}
+levers = {1: 'level1', 2: "level2", 3: 'level3'}
 
 
 def Ochib(set):
@@ -624,9 +623,28 @@ def setting():
         return True
 
 
-def generate_level(level):
-    money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    k = 0
+def generate_level(level, nom):
+    if nom == 1:
+        money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    elif nom == 2:
+        money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    elif nom == 3:
+        money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                 0, 0, 0, 0, 0]
     for y in range(len(level)):
         for x in range(len(level[y])):
             if level[y][x] == '.':
@@ -705,15 +723,15 @@ player, max_x, max_y = None, None, None
 
 def Dvech(hero, xod):
     x, y = hero.pos
-    global money_player
+    global money_player, end
     if xod == 'up':
         if y > 0:
             if level_map[y - 1][x] == '.':
                 hero.move(x, y - 1)
             if level_map[y - 1][x] == '*':
                 hero.move(x, y - 1)
-                if money_player >= 10:
-                    End()
+                if money_player >= 20:
+                    end = True
                 else:
                     Not_Money()
             if level_map[y - 1][x] == '$':
@@ -728,8 +746,8 @@ def Dvech(hero, xod):
                 hero.move(x, y + 1)
             if level_map[y + 1][x] == '*':
                 hero.move(x, y + 1)
-                if money_player >= 10:
-                    End()
+                if money_player >= 20:
+                    end = True
                 else:
                     Not_Money()
             if level_map[y + 1][x] == '$':
@@ -744,8 +762,8 @@ def Dvech(hero, xod):
                 hero.move(x - 1, y)
             if level_map[y][x - 1] == '*':
                 hero.move(x - 1, y)
-                if money_player >= 10:
-                    End()
+                if money_player >= 20:
+                    end = True
                 else:
                     Not_Money()
             if level_map[y][x - 1] == '$':
@@ -760,8 +778,8 @@ def Dvech(hero, xod):
                 hero.move(x + 1, y)
             if level_map[y][x + 1] == '*':
                 hero.move(x + 1, y)
-                if money_player >= 10:
-                    End()
+                if money_player >= 20:
+                    end = True
                 else:
                     Not_Money()
             if level_map[y][x + 1] == '$':
@@ -778,6 +796,7 @@ def Not_Money():
 
 if __name__ == '__main__':
     try:
+        start_screen()
         app = QApplication(sys.argv)
         w = Reg()
         w.show()
