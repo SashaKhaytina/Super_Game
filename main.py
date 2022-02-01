@@ -27,6 +27,9 @@ xp = 15
 f = True
 person_time = 0
 end = False
+x0 = 0
+y0 = 0
+vragg = None
 
 
 class SpriteGroup(pygame.sprite.Sprite):
@@ -159,11 +162,21 @@ class Menu_screen:
             Information()
 
 
+def VRAG(x0, y0):
+    # pic = load_image('mar.png')
+    x = x0
+    y = y0
+    Tile('vrag', x, y)
+
+
 class Player(Sprite):
-    def __init__(self, pos_x, pos_y):
+    def __init__(self, pos_x, pos_y, s):
         super().__init__(hero_group)
         global clici, ymnosh, xp
-        self.image = player_image[str(clici[1])]
+        if s == 'i':
+            self.image = player_image[str(clici[1])]
+        else:
+            self.image = player_image[str(clici[1])]
         if clici[1] == 2:
             ymnosh = 1.5
         elif clici[1] == 3:
@@ -172,6 +185,11 @@ class Player(Sprite):
         self.pos = (pos_x, pos_y)
 
     def move(self, x, y):
+        self.pos = (x, y)
+        self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
+                                               tile_height * self.pos[1] + 80)
+
+    def my_shag(self, x, y):
         self.pos = (x, y)
         self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
                                                tile_height * self.pos[1] + 80)
@@ -574,7 +592,8 @@ money_group = pygame.sprite.Group()
 tile_images = {'wall': load_image('box.png'),
               'empty': load_image('grass.png'),
                'end': load_image('end.jpg'),
-               'money': load_image('монета.png')}
+               'money': load_image('монета.png'),
+               'vrag': load_image('герой3.png')}
 player_image = {'1': load_image('герой1.png'),
                 '2': load_image('герой2.png'),
                 '3': load_image('герой3.png')}
@@ -624,6 +643,9 @@ def setting():
 
 
 def generate_level(level, nom):
+    global x0
+    global y0
+    global vragg
     if nom == 1:
         money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
@@ -667,10 +689,16 @@ def generate_level(level, nom):
                 Tile('wall', x, y)
             elif level[y][x] == '@':
                 Tile('empty', x, y)
-                new_player = Player(x, y)
+                new_player = Player(x, y, 'i')
                 level[y][x] = '.'
             elif level[y][x] == '*':
                 Tile('end', x, y)
+            else:
+                Tile('empty', x, y)
+                vragg = Player(x, y, 'v')
+                x0 = x
+                y0 = y
+                level[y][x] = '.'
     return new_player, x + 1, y + 1
 
 
@@ -720,8 +748,22 @@ def load_level(filename):
 level_map = None
 player, max_x, max_y = None, None, None
 
-
+k = 0
 def Dvech(hero, xod):
+    global money_player
+    global x0
+    global y0
+    global vragg
+    global k
+    if level_map[y0 - 1][x0] == '.' and k == 0:
+        vragg.my_shag(x0, y0 - 1)
+        y0 -= 1
+    elif level_map[y0 + 1][x0] != '#':
+        vragg.my_shag(x0, y0 + 1)
+        y0 += 1
+        k = 1
+    else:
+        k = 0
     x, y = hero.pos
     global money_player, end
     if xod == 'up':
