@@ -27,9 +27,6 @@ xp = 15
 f = True
 person_time = 0
 end = False
-x0 = 0
-y0 = 0
-vragg = None
 
 
 class SpriteGroup(pygame.sprite.Sprite):
@@ -48,6 +45,22 @@ class Sprite(pygame.sprite.Sprite):
 
     def get_event(self, event):
         pass
+
+
+def VRAG(x0, y0):
+    # pic = load_image('mar.png')
+
+    x = x0
+    y = y0
+    Tile('vrag', x, y)
+
+'''def my_shag(x ,y):
+    naprav = 1
+    #if naprav and level_map[y - 1][x] == '.':
+    print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+    Tile('empty', x, y)
+    Tile('vrag', x, y - 1)
+            #self.vragg.move(self.x, self.y)'''
 
 
 class Reg(QMainWindow):
@@ -162,21 +175,11 @@ class Menu_screen:
             Information()
 
 
-def VRAG(x0, y0):
-    # pic = load_image('mar.png')
-    x = x0
-    y = y0
-    Tile('vrag', x, y)
-
-
 class Player(Sprite):
-    def __init__(self, pos_x, pos_y, s):
+    def __init__(self, pos_x, pos_y):
         super().__init__(hero_group)
         global clici, ymnosh, xp
-        if s == 'i':
-            self.image = player_image[str(clici[1])]
-        else:
-            self.image = player_image[str(clici[1])]
+        self.image = player_image[str(clici[1])]
         if clici[1] == 2:
             ymnosh = 1.5
         elif clici[1] == 3:
@@ -185,11 +188,6 @@ class Player(Sprite):
         self.pos = (pos_x, pos_y)
 
     def move(self, x, y):
-        self.pos = (x, y)
-        self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
-                                               tile_height * self.pos[1] + 80)
-
-    def my_shag(self, x, y):
         self.pos = (x, y)
         self.rect = self.image.get_rect().move(tile_width * self.pos[0] + 90,
                                                tile_height * self.pos[1] + 80)
@@ -349,6 +347,13 @@ money_player = 0
 
 class Game:
     def __init__(self):
+        for sprite in hero_group:
+            if isinstance(sprite, Player):
+                sprite.kill()
+        for sprite in sprite_group:
+            if isinstance(sprite, Player):
+                sprite.kill()
+        self.itog_time = 0
         money_brag = 0
         fon = pygame.transform.scale(load_image('fon_game.jpg'), size)
         screen.blit((fon), (0, 0))
@@ -367,6 +372,7 @@ class Game:
         player = None
         self.running = True
         global level_map, max_x, max_y, end, clici
+        end = 0
         level_map = load_level(levers[clici[0]])
         player, max_x, max_y = generate_level(level_map, 1)
         self.time_start = time.time()
@@ -385,6 +391,7 @@ class Game:
                         Dvech(player, 'left')
             if end:
                 self.End()
+                break
             pygame.draw.rect(screen, (10, 10, 10), (25, 600, 150, 25))
             self.change_time()
             pygame.display.update()
@@ -395,13 +402,19 @@ class Game:
     def End(self):
         screen.fill((0, 0, 0))
         self.running = False
-        #fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
-        #screen.blit((fon), (0, 0))
+        fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
+        screen.blit((fon), (0, 0))
         im = pygame.image.load('data/кменю.png')
         screen.blit((im), (20, 590))
+
         self.db = sqlite3.connect("data/info.db")
         self.sql = self.db.cursor()
         global person_clici, money_player, person_login, person_time, time_record, money_record, person_money
+        person_time = self.itog_time
+        l1 = 'Время: ' + str(person_time)
+        l2 = 'Собранные монеты: ' + str(money_player * ymnosh)
+        lines = ['Вы вышли из игры!', 'Ваши результаты:',
+                 l1, l2]
         for i in range(3):
             if int(person_clici[i]) < 3:
                 person_clici[i] += 1
@@ -409,16 +422,64 @@ class Game:
         SET clici = (?) 
         WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
         self.db.commit()
+        result = self.sql.execute("""SELECT * FROM records WHERE login = ?""",
+                                  (person_login,)).fetchall()
         if time_record < person_time:
+            lines.append('Вы побили свой рекорд по времени!')
+            lines.append(str(time_record))
             time_record = person_time
+            if len(result) > 0:
+                self.sql.execute("""UPDATE records 
+                        SET time = (?) 
+                        WHERE login == (?)""", (time_record, person_login))
+                self.db.commit()
+            else:
+                self.sql.execute(f"""INSERT INTO records(login, money, time) 
+                            VALUES('{person_login}', {money_record}, {time_record})""")
+                self.db.commit()
         if money_record < money_player * ymnosh:
+            lines.append('Вы побили свой рекорд по монетам!')
+            lines.append(str(money_record))
             money_record = money_player * ymnosh
+            if len(result) > 0:
+                self.sql.execute("""UPDATE records 
+                        SET money = (?) 
+                        WHERE login == (?)""", (money_record, person_login))
+                self.db.commit()
+            else:
+                self.sql.execute(f"""INSERT INTO records(login, money, time) 
+                            VALUES('{person_login}', {money_record}, {time_record})""")
+                self.db.commit()
         person_money = person_money + (money_player * ymnosh)
 
+        lines.append('Спасибо за игру!')
+        font = pygame.font.Font(None, 30)
+        for i in range(len(lines)):
+            string_rendered = font.render(lines[i], 1, pygame.Color('red'))
+            intro_rect = string_rendered.get_rect()
+            intro_rect.top = 50 * (i + 1)
+            intro_rect.x = 50
+            screen.blit(string_rendered, intro_rect)
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    self.on_click(event.pos)
+            pygame.display.flip()
+        pygame.quit()
+
+    def on_click(self, cell_coords):
+        x = cell_coords[0]
+        y = cell_coords[1]
+        if 20 < x < 120 and 590 < y < 640:
+            Menu_screen()
+
+
     def change_time(self):
-        itog_time = round(time.time() - self.time_start, 2)
+        self.itog_time = round(time.time() - self.time_start, 2)
         font = pygame.font.Font(None, 40)
-        string_rendered = font.render(f'time:{itog_time}', 1, (255, 255, 0))
+        string_rendered = font.render(f'time:{self.itog_time}', 1, (255, 255, 0))
         intro_rect = string_rendered.get_rect()
         intro_rect.top = 600
         intro_rect.x = 30
@@ -643,9 +704,6 @@ def setting():
 
 
 def generate_level(level, nom):
-    global x0
-    global y0
-    global vragg
     if nom == 1:
         money = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0,
@@ -689,16 +747,10 @@ def generate_level(level, nom):
                 Tile('wall', x, y)
             elif level[y][x] == '@':
                 Tile('empty', x, y)
-                new_player = Player(x, y, 'i')
+                new_player = Player(x, y)
                 level[y][x] = '.'
             elif level[y][x] == '*':
                 Tile('end', x, y)
-            else:
-                Tile('empty', x, y)
-                vragg = Player(x, y, 'v')
-                x0 = x
-                y0 = y
-                level[y][x] = '.'
     return new_player, x + 1, y + 1
 
 
@@ -748,22 +800,8 @@ def load_level(filename):
 level_map = None
 player, max_x, max_y = None, None, None
 
-k = 0
+
 def Dvech(hero, xod):
-    global money_player
-    global x0
-    global y0
-    global vragg
-    global k
-    if level_map[y0 - 1][x0] == '.' and k == 0:
-        vragg.my_shag(x0, y0 - 1)
-        y0 -= 1
-    elif level_map[y0 + 1][x0] != '#':
-        vragg.my_shag(x0, y0 + 1)
-        y0 += 1
-        k = 1
-    else:
-        k = 0
     x, y = hero.pos
     global money_player, end
     if xod == 'up':
