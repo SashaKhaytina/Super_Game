@@ -6,7 +6,7 @@ import sys
 import time
 from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QPushButton, QLabel, QLineEdit
 from PyQt5 import uic
-
+money_player = 0
 pygame.init()
 size = width, height = 1200, 650
 screen = pygame.display.set_mode(size)
@@ -15,6 +15,7 @@ hero_group = pygame.sprite.Group()
 game_music = pygame.mixer.Sound('data/game.mp3')
 game_music.set_volume(0.025)
 person_login = ''
+person_money = 0
 money_brag = 0
 tile_width = tile_height = 50
 money_record = 0
@@ -71,6 +72,7 @@ class Reg(QMainWindow):
         self.pushButton.clicked.connect(self.check)
 
     def check(self):
+        global person_clici, person_money, person_login, money_record, time_record
         self.l = self.lineEdit.text()
         self.p = self.lineEdit_2.text()
         if self.l == '' or self.p == '':
@@ -81,7 +83,6 @@ class Reg(QMainWindow):
                                       (self.l,)).fetchall()
             if len(result) > 0:
                 if result[0][1] == self.p:
-                    global person_clici, person_money, person_login, money_record, time_record
                     records_data = self.sql.execute("""SELECT * FROM records WHERE login = (?)""",
                                                     (self.l,)).fetchall()
                     person_clici = [int(i) for i in result[0][3].split(' ')]
@@ -99,7 +100,7 @@ class Reg(QMainWindow):
                                     VALUES (?, ?, ?, ?)""",
                                  (str(self.l), str(self.p), int(self.money), '1 1 1 0 0'))
                 self.db.commit()
-                person_clici = [1, 2, 2, 0, 0]
+                person_clici = [1, 1, 1, 0, 0]
                 person_money = self.money
                 person_login = self.l
                 global f
@@ -122,10 +123,16 @@ def start_screen():
 class Menu_screen:
     def __init__(self):
         fon = pygame.transform.scale(load_image('fon2.jpg'), size)
+        global person_money
         screen.blit((fon), (0, 0))
         font = pygame.font.Font(None, 50)
         text_coord = 0
         intro_text = ['Рекорды', 'Новая игра', 'Обучение', "Информация о врагах/персонажах"]
+        string_rendered = font.render(f"Количество монет: {str(person_money)}", 1, pygame.Color('white'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.top = 10
+        intro_rect.x = 10
+        screen.blit(string_rendered, intro_rect)
         for line in range(len(intro_text)):
             string_rendered = font.render(intro_text[line], 1, pygame.Color('white'))
             intro_rect = string_rendered.get_rect()
@@ -329,11 +336,10 @@ class New_Game: #настройки игры
             Ochib(0)
 
 
-money_player = 0
-
-
 class Game:
     def __init__(self):
+        global money_player
+        money_player = 0
         for sprite in hero_group:
             if isinstance(sprite, Player):
                 sprite.kill()
