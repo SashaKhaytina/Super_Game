@@ -14,10 +14,7 @@ sprite_group = pygame.sprite.Group()
 hero_group = pygame.sprite.Group()
 game_music = pygame.mixer.Sound('data/game.mp3')
 game_music.set_volume(0.025)
-clici = [0, 0, 0, 0, 0]
-person_clici = [1, 2, 2, 0, 0]
 person_login = ''
-person_money = 0 #для теста, потом изменится
 money_brag = 0
 tile_width = tile_height = 50
 money_record = 0
@@ -48,19 +45,9 @@ class Sprite(pygame.sprite.Sprite):
 
 
 def VRAG(x0, y0):
-    # pic = load_image('mar.png')
-
     x = x0
     y = y0
     Tile('vrag', x, y)
-
-'''def my_shag(x ,y):
-    naprav = 1
-    #if naprav and level_map[y - 1][x] == '.':
-    print('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-    Tile('empty', x, y)
-    Tile('vrag', x, y - 1)
-            #self.vragg.move(self.x, self.y)'''
 
 
 class Reg(QMainWindow):
@@ -110,7 +97,7 @@ class Reg(QMainWindow):
             else:
                 self.sql.execute("""INSERT INTO users(login, password, current_money, clici)
                                     VALUES (?, ?, ?, ?)""",
-                                 (str(self.l), str(self.p), int(self.money), '1 2 2 0 0'))
+                                 (str(self.l), str(self.p), int(self.money), '1 1 1 0 0'))
                 self.db.commit()
                 person_clici = [1, 2, 2, 0, 0]
                 person_money = self.money
@@ -200,7 +187,7 @@ class New_Game: #настройки игры
         var = [[], ['1', '2', '3'], ['1', '2', '3'], ['1', '2', '3'], ['1', '2'], ['1 ход', '2 хода', '3 хода']]
         fon = pygame.transform.scale(load_image('fon_settings.jpg'), size)
         screen.blit((fon), (0, 0))
-        pygame.draw.rect(screen, (0, 0, 0), (900, 550, 280, 80))
+        pygame.draw.rect(screen, (112, 146, 190), (900, 550, 280, 80))
         im = pygame.image.load('data/кменю.png')
         screen.blit((im), (20, 590))
         font = pygame.font.Font(None, 60)
@@ -246,7 +233,7 @@ class New_Game: #настройки игры
         x = cell_coords[0]
         y = cell_coords[1]
         no = (255, 255, 255)
-        yes = (0, 255, 0)
+        yes = (112, 146, 190)
         global clici
         if 900 < x < 1180 and 550 < y < 630:
             set = setting()
@@ -406,7 +393,6 @@ class Game:
         screen.blit((fon), (0, 0))
         im = pygame.image.load('data/кменю.png')
         screen.blit((im), (20, 590))
-
         self.db = sqlite3.connect("data/info.db")
         self.sql = self.db.cursor()
         global person_clici, money_player, person_login, person_time, time_record, money_record, person_money
@@ -415,13 +401,6 @@ class Game:
         l2 = 'Собранные монеты: ' + str(money_player * ymnosh)
         lines = ['Вы вышли из игры!', 'Ваши результаты:',
                  l1, l2]
-        for i in range(3):
-            if int(person_clici[i]) < 3:
-                person_clici[i] += 1
-        self.sql.execute("""UPDATE users 
-        SET clici = (?) 
-        WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
-        self.db.commit()
         result = self.sql.execute("""SELECT * FROM records WHERE login = ?""",
                                   (person_login,)).fetchall()
         if time_record < person_time:
@@ -451,11 +430,24 @@ class Game:
                             VALUES('{person_login}', {money_record}, {time_record})""")
                 self.db.commit()
         person_money = person_money + (money_player * ymnosh)
-
         lines.append('Спасибо за игру!')
         font = pygame.font.Font(None, 30)
+        if person_money >= 80 and person_clici[0] == 1:
+            person_clici[0] = 2
+            person_clici[1] = 2
+        elif person_money >= 100 and person_clici[1] == 1:
+            person_clici[1] = 2
+            person_clici[2] = 2
+        elif person_money >= 130 and person_clici[1] == 2:
+            person_clici[2] = 3
+            person_clici[1] = 3
+            person_clici[0] = 3
+        self.sql.execute("""UPDATE users 
+                SET clici = (?) 
+                WHERE login == (?)""", (' '.join([str(i) for i in person_clici]), person_login))
+        self.db.commit()
         for i in range(len(lines)):
-            string_rendered = font.render(lines[i], 1, pygame.Color('red'))
+            string_rendered = font.render(lines[i], 1, pygame.Color('white'))
             intro_rect = string_rendered.get_rect()
             intro_rect.top = 50 * (i + 1)
             intro_rect.x = 50
@@ -474,7 +466,6 @@ class Game:
         y = cell_coords[1]
         if 20 < x < 120 and 590 < y < 640:
             Menu_screen()
-
 
     def change_time(self):
         self.itog_time = round(time.time() - self.time_start, 2)
@@ -498,7 +489,7 @@ def change_money():
 
 class Education:  # обучение
     def __init__(self):
-        fon = pygame.transform.scale(load_image('fonchik.jpg'), size)
+        fon = pygame.transform.scale(load_image('fon2.jpg'), size)
         screen.blit((fon), (0, 0))
         font = pygame.font.Font(None, 30)
         im = pygame.image.load('data/кменю.png')
@@ -559,8 +550,8 @@ class Information:  # информация о фрагах и персонажа
                  'за определенное количество монет!',
                  '',
                  'Враги:',
-                 'Враги также могут отличаться не только картинкой, но и скоростью появления,',
-                 'своим количеством. Это все создано, чтобы вам было интересней играть!',
+                 'Враги также могут отличаться не только картинкой, но и скоростью появления.',
+                 'Это все создано, чтобы вам было интересней играть!',
                  '',
                  '                                                                         Желаем удачи!']
         for i in range(len(lines)):
@@ -664,7 +655,7 @@ levers = {1: 'level1', 2: "level2", 3: 'level3'}
 def Ochib(set):
     font = pygame.font.Font(None, 60)
     line = ['']
-    pygame.draw.rect(screen, (0, 0, 0), (900, 550, 280, 80))
+    pygame.draw.rect(screen, (112, 146, 190), (900, 550, 280, 80))
     if set == 0:
         line = ["Начать игру"]
     elif set == 1:
