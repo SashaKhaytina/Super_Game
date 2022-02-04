@@ -16,7 +16,6 @@ game_music = pygame.mixer.Sound('data/game.mp3')
 game_music.set_volume(0.025)
 person_login = ''
 person_money = 0
-money_brag = 0
 tile_width = tile_height = 50
 money_record = 0
 time_record = 0
@@ -51,7 +50,7 @@ def VRAG(x0, y0):
     Tile('vrag', x, y)
 
 
-class Reg(QMainWindow):
+class Reg(QMainWindow): # регистрация
     def __init__(self):
         super().__init__()
         self.money = 50
@@ -120,7 +119,7 @@ def start_screen():
         pygame.display.flip()
 
 
-class Menu_screen:
+class Menu_screen: # меню
     def __init__(self):
         fon = pygame.transform.scale(load_image('fon2.jpg'), size)
         global person_money
@@ -169,7 +168,7 @@ class Menu_screen:
             Information()
 
 
-class Player(Sprite):
+class Player(Sprite): #класс создания игрока и врага
     def __init__(self, pos_x, pos_y, s):
         super().__init__(hero_group)
         global ymnosh, xp
@@ -183,8 +182,8 @@ class Player(Sprite):
             self.pos = (pos_x, pos_y)
         else:
             self.image = load_image('enemy2.png')
-        self.rect = self.image.get_rect().move(tile_width * pos_x + 90, tile_height * pos_y + 80)
-        self.pos = (pos_x, pos_y)
+            self.rect = self.image.get_rect().move(tile_width * pos_x + 90, tile_height * pos_y + 80)
+            self.pos = (pos_x, pos_y)
 
     def move(self, x, y):
         self.pos = (x, y)
@@ -317,7 +316,7 @@ class New_Game: #настройки игры
             Ochib(0)
 
 
-class Game:
+class Game: #Игра
     def __init__(self):
         global money_player
         money_player = 0
@@ -333,16 +332,10 @@ class Game:
         screen.blit((fon), (0, 0))
         image = pygame.transform.scale(load_image('монета.png'), (40, 40))
         screen.blit((image), (22, 22))
-        screen.blit((image), (1078, 22))
         for i in range(xp):
             pygame.draw.rect(screen, (0, 128, 0), (i * 15 + 200, 22, 10, 40))
         font = pygame.font.Font(None, 40)
         change_money()
-        string_rendered = font.render(f'X{money_brag}', 1, (255, 242, 0))
-        intro_rect = string_rendered.get_rect()
-        intro_rect.top = 30
-        intro_rect.x = 1120
-        screen.blit(string_rendered, intro_rect)
         player = None
         self.running = True
         global level_map, max_x, max_y, end, clici
@@ -352,6 +345,7 @@ class Game:
         self.time_start = time.time()
         while self.running:
             for event in pygame.event.get():
+                pygame.draw.rect(screen, (0, 0, 0), (200, 22, 225, 40))
                 if event.type == pygame.QUIT:
                     self.running = False
                 elif event.type == pygame.KEYDOWN:
@@ -464,7 +458,7 @@ class Game:
         screen.blit(string_rendered, intro_rect)
 
 
-def change_money():
+def change_money(): #добавление монет
     font = pygame.font.Font(None, 40)
     string_rendered = font.render(f'X{money_player}', 1, (255, 242, 0))
     intro_rect = string_rendered.get_rect()
@@ -667,7 +661,7 @@ def Ochib(set):
         h += 30
 
 
-def setting():
+def setting(): #проверка настроек
     global clici, person_clici
     if 0 in clici:
         return 1
@@ -683,7 +677,9 @@ def setting():
 x0 = 0
 y0 = 0
 vragg = None
-def generate_level(level, nom):
+
+
+def generate_level(level, nom): #создание уровня
     global x0
     global y0
     global vragg
@@ -769,12 +765,14 @@ player, max_x, max_y = None, None, None
 
 
 k = 0
-def Dvech(hero, xod):
+
+
+def Dvech(hero, xod): #движение
     global money_player
     global x0
     global y0
-    global vragg
-    global k
+    global vragg, end
+    global k, xp
     if level_map[y0 - 1][x0] == '.' and k == 0:
         vragg.my_shag(x0, y0 - 1)
         y0 -= 1
@@ -787,14 +785,14 @@ def Dvech(hero, xod):
     x, y = hero.pos
     if xod == 'up':
         if y > 0:
+            if x == x0 and y0 == y - 1:
+                xp -= 1
             if level_map[y - 1][x] == '.':
                 hero.move(x, y - 1)
             if level_map[y - 1][x] == '*':
                 hero.move(x, y - 1)
                 if money_player >= 20:
                     end = True
-                else:
-                    Not_Money()
             if level_map[y - 1][x] == '$':
                 level_map[y-1][x] = '.'
                 Tile('empty', x, y - 1)
@@ -802,6 +800,8 @@ def Dvech(hero, xod):
                 money_player += 1
                 change_money()
     elif xod == 'down':
+        if x == x0 and y0 == y - 1:
+            xp -= 1
         if y < max_y - 1:
             if level_map[y + 1][x] == '.':
                 hero.move(x, y + 1)
@@ -809,8 +809,6 @@ def Dvech(hero, xod):
                 hero.move(x, y + 1)
                 if money_player >= 20:
                     end = True
-                else:
-                    Not_Money()
             if level_map[y + 1][x] == '$':
                 hero.move(x, y + 1)
                 level_map[y + 1][x] = '.'
@@ -818,6 +816,8 @@ def Dvech(hero, xod):
                 money_player += 1
                 change_money()
     elif xod == 'left':
+        if x == x0 and y0 == y - 1:
+            xp -= 1
         if x > 0:
             if level_map[y][x - 1] == '.':
                 hero.move(x - 1, y)
@@ -825,8 +825,6 @@ def Dvech(hero, xod):
                 hero.move(x - 1, y)
                 if money_player >= 20:
                     end = True
-                else:
-                    Not_Money()
             if level_map[y][x - 1] == '$':
                 hero.move(x - 1, y)
                 level_map[y][x - 1] = '.'
@@ -834,6 +832,8 @@ def Dvech(hero, xod):
                 money_player += 1
                 change_money()
     elif xod == 'right':
+        if x == x0 and y0 == y - 1:
+            xp -= 1
         if x < max_x - 1:
             if level_map[y][x + 1] == '.':
                 hero.move(x + 1, y)
@@ -841,18 +841,12 @@ def Dvech(hero, xod):
                 hero.move(x + 1, y)
                 if money_player >= 20:
                     end = True
-                else:
-                    Not_Money()
             if level_map[y][x + 1] == '$':
                 hero.move(x + 1, y)
                 level_map[y][x + 1] = '.'
                 Tile('empty', x + 1, y)
                 money_player += 1
                 change_money()
-
-
-def Not_Money():
-    pass
 
 
 if __name__ == '__main__':
